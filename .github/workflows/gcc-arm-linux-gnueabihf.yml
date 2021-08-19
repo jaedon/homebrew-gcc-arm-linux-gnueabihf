@@ -1,0 +1,47 @@
+name: gcc-arm-linux-gnueabihf for macOS
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Build gcc-arm-linux-gnueabihf
+    runs-on: macos-11
+    strategy:
+      matrix:
+        gcc-major-version: [11, 6]
+        include:
+          - gcc-major-version: 11
+            gcc-version: 11.2.0
+          - gcc-major-version: 6
+            gcc-version: 6.5.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up crosstool-ng
+        run: brew install crosstool-ng --HEAD
+      - name: Build
+        run: |
+          mkdir -p /private/tmp/runner
+          hdiutil create ${HOME}/work.sparseimage -volname gcc-arm-linux-gnueabihf -type SPARSE -size 20g -fs HFSX
+          hdiutil mount ${HOME}/work.sparseimage -mountroot /private/tmp/runner
+          mkdir -p /usr/local/Cellar/gcc-arm-linux-gnueabihf
+          hdiutil create ${HOME}/install.sparseimage -volname ${{ matrix.gcc-version }} -type SPARSE -size 1g -fs HFSX
+          hdiutil mount ${HOME}/install.sparseimage -mountroot /usr/local/Cellar/gcc-arm-linux-gnueabihf
+          cp gcc-${{ matrix.gcc-major-version }}-arm-linux-gnueabihf.config /private/tmp/runner/gcc-arm-linux-gnueabihf/defconfig
+          cd /private/tmp/runner/gcc-arm-linux-gnueabihf
+          ct-ng defconfig
+          sed -i -e '/CT_RM_RF_PREFIX_DIR/s/y$/n/' .config
+          sed -i -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config
+          sed -i -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config
+          ct-ng build
+          cd /usr/local/Cellar
+          tar --exclude=gcc-arm-linux-gnueabihf/11.2.0/.fseventsd -zcf /private/tmp/runner/gcc-arm-linux-gnueabihf/gcc-arm-linux-gnueabihf--${{ matrix.gcc-version }}.big_sur.bottle.tar.gz gcc-arm-linux-gnueabihf/${{ matrix.gcc-version }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: gcc-${{ matrix.gcc-major-version }}-arm-linux-gnueabihf
+          tag_name: gcc-${{ matrix.gcc-major-version }}-arm-linux-gnueabihf
+          files: /private/tmp/runner/gcc-arm-linux-gnueabihf/gcc-arm-linux-gnueabihf--${{ matrix.gcc-version }}.big_sur.bottle.tar.gz
