@@ -5,6 +5,8 @@ class GccArmLinuxGnueabihf < Formula
   sha256 "41643eff21921c273f7f2d680c7780fabcabf021273b23cc93e30c2fd0560263"
   license "GPL-3.0-or-later" => { with: "GCC-exception-3.1" }
 
+  keg_only :versioned_formula
+
   def install
     prefix.install Dir["11.2.0/*"]
   end
